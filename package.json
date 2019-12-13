@@ -1,0 +1,12 @@
+{
+    "name": "@tolkam/lib-match-media",
+    "version": "1.0.0",
+    "description": "Media query events",
+    "main": "src/index.ts",
+    "license": "UNLICENSED",
+    "private": true,
+    "dependencies": {
+        "@tolkam/lib-utils": "file:D:/dev-packages/js/tolkam/lib-utils"
+    },
+    "devDependencies": {}
+}
