@@ -6,9 +6,9 @@ class MatchMedia {
 
     /**
      * Media rules
-     * @type {IRule[]}
+     * @type {IRules}
      */
-    public readonly rules: IRule[] = [];
+    public readonly rules: IRules;
 
     /**
      * Registered listeners
@@ -17,9 +17,9 @@ class MatchMedia {
     protected listeners: any[] = [];
 
     /**
-     * @param {IRule[]} rules
+     * @param {IRules} rules
      */
-    constructor(rules: IRule[]) {
+    constructor(rules: IRules) {
         const that = this;
 
         if (typeof MM !== 'function') {
@@ -29,77 +29,45 @@ class MatchMedia {
 
         this.rules = rules;
 
-        rules.forEach(function(ruleGroup) {
-            for (var key in ruleGroup) {
-                let mql = MM(ruleGroup[key]);
-                if (typeof mql.addListener === 'function') {
-                    mql.addListener(function(key: string, e: MediaQueryList) {
-                        that.notify(e, key);
-                    }.bind(null, key)); // bind to get updated key on each call
-                }
+        for (const key in rules) {
+            let mql = MM(rules[key]);
+            if (typeof mql.addListener === 'function') {
+                mql.addListener(function(key: string, e: MediaQueryList) {
+                    that.notify(e, key);
+                }.bind(null, key)); // bind to get updated key on each call
             }
-        });
+        }
     }
 
-    /**
-     * Notifies listeners on changes
-     *
-     * @param {MediaQueryList} e
-     * @param {string} ruleKey
-     * @param {number} ruleGroupIdx
-     */
-    protected notify = (e: MediaQueryList, ruleKey: string) => {
-        const that = this;
-
-        for (var i = 0; i < that.listeners.length; i++) {
-
-            let keys = that.listeners[i][1];
-            if (e.matches) {
-                keys.push(ruleKey);
-            } else {
-                keys.splice(keys.indexOf(ruleKey), 1);
-            }
-
-            // notify listener when keys calc is done and count
-            // of calculated keys equals to rules groups count
-            // if (keys.length === that.rules.length) {
-                that.listeners[i][0](keys, that.rules);
-            // }
-        }
-    };
 
     /**
-     * Adds listener for the matchmedia events
+     * Adds listener for the match media events
      *
      * @param {Function} listener
      * @param {Boolean}  immediate
      */
-    public listen(listener: Listener, immediate: boolean = true): () => void {
+    public listen(listener: TListener, immediate: boolean = true): () => void {
 
         const that = this;
+        const rules = that.rules;
 
         // debounce listener to fire only when calculations are done
         listener = debounce(listener, 1);
 
         // check if rules matches
-        let keys: string[] = [];
-        let groupIdx: number;
+        const matches: any = {};
 
-        that.rules.forEach((group: any) => {
-            for (var key in group) {
-                if (MM(group[key]).matches) {
-                    keys.push(key);
-                }
-            }
-        });
+        for (const key in rules) {
+            matches[key] = MM(rules[key]).matches;
+        }
 
         // call listener (initial match)
-        if (immediate && keys.length) {
-            listener(keys, that.rules);
+        if (immediate) {
+            listener(matches, rules);
         }
 
         // register listener with keys matched on init
-        const listenerArr = [listener, keys];
+        const listenerArr = [listener, matches];
         that.listeners.push(listenerArr);
 
         // return unlisten function
@@ -107,24 +75,43 @@ class MatchMedia {
             that.listeners.splice(that.listeners.indexOf(listenerArr), 1);
         }
     }
+
+    /**
+     * Notifies listeners on changes
+     *
+     * @param {MediaQueryList} e
+     * @param {string} ruleKey
+     */
+    protected notify = (e: MediaQueryList, ruleKey: string) => {
+        const that = this;
+
+        for (let i = 0; i < that.listeners.length; i++) {
+            const matches = that.listeners[i][1];
+            matches[ruleKey] = e.matches;
+
+            that.listeners[i][0](matches, that.rules);
+        }
+    };
 }
 
 /*
- * [
- *   {
- *      'k1': '(max-width:575px)',
- *      'k1': '(min-width:576px) and (max-width:767px)',
- *   },
- *   {
- *      'k3': 'all and (orientation: landscape)',
- *   }
- * ]
+ * {
+ *     'k1': '(max-width:575px)',
+ *     'k2': '(min-width:576px) and (max-width:767px)',
+ *     'k3': 'all and (orientation: landscape)',
+ *  }
  */
-export interface IRule {
+
+export interface IRules {
     [key: string]: string
 }
 
-export default MatchMedia;
+interface IMatches {
+    [key: string]: boolean
+}
 
-type Listener = (keys: string[], rules: IRule[]) => void;
+type TListener = (matches: IMatches, rules: IRules) => void;
+
+export default MatchMedia;
+export { TListener }
 
